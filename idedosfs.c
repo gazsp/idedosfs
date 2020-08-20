@@ -31,7 +31,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/file.h> // for flock()
-#include <attr/xattr.h>
+#include <linux/xattr.h>
 #include <pthread.h> // for mutexen
 
 typedef struct
@@ -44,6 +44,7 @@ typedef struct
 	char td[0x25]; // type specific data
 }
 partent;
+
 partent p_decode(const char part[0x40]);
 
 pthread_rwlock_t dmex; // disk mutex
@@ -230,7 +231,7 @@ static int ide_truncate(const char *path, off_t offset)
 static int ide_getxattr(const char *path, const char *name, char *value, size_t vlen)
 {
 	int p=lookup(path);
-	if((p<0)||(p>=(int)d_np)) return(-ENOATTR);
+	if((p<0)||(p>=(int)d_np)) return(-ENODATA);
 	pthread_rwlock_rdlock(&dmex);
 	if(!p_list[p].pt||(p_list[p].pt>0xFD)) // disallow 0 (unused), 0xFE (bad space) and 0xFF (free space)
 	{
@@ -276,13 +277,13 @@ static int ide_getxattr(const char *path, const char *name, char *value, size_t 
 		}
 	}
 	pthread_rwlock_unlock(&dmex);
-	return(-ENOATTR);
+	return(-ENODATA);
 }
 
 static int ide_listxattr(const char *path, char *list, size_t size)
 {
 	int p=lookup(path);
-	if((p<0)||(p>=(int)d_np)) return(-ENOATTR);
+	if((p<0)||(p>=(int)d_np)) return(-ENODATA);
 	pthread_rwlock_rdlock(&dmex);
 	if(!p_list[p].pt||(p_list[p].pt>0xFD)) // disallow 0 (unused), 0xFE (bad space) and 0xFF (free space)
 	{
@@ -417,22 +418,26 @@ int main(int argc, char *argv[])
 	}
 	fprintf(stderr, "idedosfs: '%s' mmap()ed in\n", hdf);
 	int rv=EXIT_FAILURE;
+
 	if(memcmp(dm, "RS-IDE\032", 7))
 	{
 		fprintf(stderr, "idedosfs: '%s' is not a valid HDF file\n", hdf);
 		goto shutdown;
 	}
+
 	if(dm[7]!=0x11)
 	{
 		fprintf(stderr, "idedosfs: '%s' is not a version 1.1 HDF file.\n\tOnly version 1.1 files are supported.\n", hdf);
 		goto shutdown;
 	}
+
 	pthread_rwlock_wrlock(&dmex);
 	fprintf(stderr, "idedosfs: HDDOFF = %04x%s\n", HDDOFF, HSD?", HSD":"");
 	d_8bit=false;
 	char syspart[0x40];
 	dread_havelock(syspart, 0x40, 0);
 	partent sp=p_decode(syspart);
+
 	if((!HSD)&&memcmp(sp.pn, "PLUSIDEDOS      ", 16))
 	{
 		fprintf(stderr, "idedosfs: sp.pn = %.16s\nTrying d_8bit...\n", sp.pn);
@@ -440,6 +445,7 @@ int main(int argc, char *argv[])
 		dread_havelock(syspart, 0x40, 0);
 		sp=p_decode(syspart);
 	}
+
 	pthread_rwlock_unlock(&dmex);
 	if(memcmp(sp.pn, "PLUSIDEDOS      ", 16))
 	{
@@ -511,13 +517,13 @@ int main(int argc, char *argv[])
 		}
 	}
 	pthread_rwlock_unlock(&dmex);
-	
+
 	int fargc=argc-1;
 	char **fargv=(char **)malloc(fargc*sizeof(char *));
 	fargv[0]=argv[0];
 	for(int i=1;i<fargc;i++)
 		fargv[i]=argv[i+1];
-	
+
 	rv=fuse_main(fargc, fargv, &ide_oper, NULL);
 	shutdown:
 	pthread_rwlock_wrlock(&dmex);

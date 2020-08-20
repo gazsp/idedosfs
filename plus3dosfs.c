@@ -31,7 +31,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/file.h> // for flock()
-#include <attr/xattr.h>
+#include <linux/xattr.h>
 #include <pthread.h> // for mutexen
 
 typedef struct
@@ -627,7 +627,7 @@ static int plus3_truncate(const char *path, off_t offset)
 static int plus3_getxattr(const char *path, const char *name, char *value, size_t vlen)
 {
 	if(path[0]!='/') return(-ENOENT);
-	if(!path[1]) return(-ENOATTR);
+	if(!path[1]) return(-ENODATA);
 	int32_t i=lookup(path);
 	if((i<0)||(i>=(int32_t)d_ndirent))
 		return(-ENOENT);
@@ -666,7 +666,7 @@ static int plus3_getxattr(const char *path, const char *name, char *value, size_
 	else if(strcmp(name, "user.plus3dos.header")==0)
 		snprintf(result, 256, "%u%n", header?1:0, &rlen);
 	pthread_rwlock_unlock(&dmex);
-	if(!rlen) return(-ENOATTR);
+	if(!rlen) return(-ENODATA);
 	if(vlen)
 	{
 		if((int)vlen<rlen)
@@ -679,7 +679,7 @@ static int plus3_getxattr(const char *path, const char *name, char *value, size_
 static int plus3_setxattr(const char *path, const char *name, const char *value, size_t vlen, int flags)
 {
 	if(path[0]!='/') return(-ENOENT);
-	if(!path[1]) return(-ENOATTR);
+	if(!path[1]) return(-ENODATA);
 	int32_t i=lookup(path);
 	if((i<0)||(i>=(int32_t)d_ndirent))
 		return(-ENOENT);
@@ -831,7 +831,7 @@ static int plus3_setxattr(const char *path, const char *name, const char *value,
 		}
 		return(-EINVAL);
 	}
-	return(-ENOATTR);
+	return(-ENODATA);
 }
 
 static int plus3_listxattr(const char *path, char *list, size_t size)
