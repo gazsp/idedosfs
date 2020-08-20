@@ -1,7 +1,7 @@
 # ffs Makefile
 
 CC := gcc
-CFLAGS := -Wall -Wextra -Werror -Wno-unused -pedantic --std=gnu99 -g
+CFLAGS := -Wall -Wextra -Wno-unused -pedantic --std=gnu99 -g
 FUSEFLAGS := `pkg-config fuse --cflags`
 FUSELIBS := `pkg-config fuse --libs`
 
